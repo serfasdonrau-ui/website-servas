@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buku Khas Pengeluaran Bulanan Maximus Nong by.Servas Rau</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f4f8; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
+        h1 { color: #007bff; text-align: center; margin-bottom: 25px; }
+        h2 { border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; margin-top: 30px; color: #555; }
+        
+        /* Form Styling */
+        #expense-form { display: grid; grid-template-columns: 1fr 2fr 1.5fr auto; gap: 15px; padding: 20px; border: 1px solid #cce0ff; border-radius: 8px; background-color: #eaf4ff; margin-bottom: 30px; }
+        #expense-form input { padding: 12px; border: 1px solid #a8c8e8; border-radius: 5px; }
+        #expense-form button { padding: 12px 20px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: background-color 0.3s; }
+        #expense-form button:hover { background-color: #218838; }
+
+        /* Expense List Styling */
+        .month-group { margin-bottom: 20px; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
+        .month-header { background-color: #007bff; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .total-amount { font-size: 1.3em; font-weight: bold; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background-color: #f8f9fa; color: #495057; }
+        tr:hover { background-color: #f1f1f1; }
+        .no-data { text-align: center; color: #999; padding: 20px; }
+        
+        /* Utility */
+        .text-right { text-align: right; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>💰 Buku Khas Pengeluaran Bulanan Maximus Nong by.Servas Rau</h1>
+
+        <h2>Catat Pengeluaran Baru</h2>
+        <form id="expense-form">
+            <input type="date" id="input-date" required>
+            <input type="text" id="input-description" placeholder="Deskripsi Pengeluaran (mis. Beli Kopi)" required>
+            <input type="number" id="input-amount" placeholder="Jumlah (IDR)" step="any" min="1" required>
+            <button type="submit">Tambah</button>
+        </form>
+
+        <h2>Arsip & Rekap Bulanan</h2>
+        <div id="expense-list">
+            <p class="no-data">Belum ada pengeluaran yang dicatat. Mulai catat sekarang!</p>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'monthlyExpensesData';
+        const form = document.getElementById('expense-form');
+        const listDiv = document.getElementById('expense-list');
+
+        /** Memuat data dari Local Storage */
+        function loadExpenses() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            return data ? JSON.parse(data) : [];
+        }
+
+        /** Menyimpan data ke Local Storage */
+        function saveExpenses(expenses) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+        }
+
+        /** Mengelompokkan dan menampilkan data */
+        function renderExpenses() {
+            const expenses = loadExpenses();
+            listDiv.innerHTML = ''; // Kosongkan tampilan lama
+
+            if (expenses.length === 0) {
+                listDiv.innerHTML = '<p class="no-data">Belum ada pengeluaran yang dicatat. Mulai catat sekarang!</p>';
+                return;
+            }
+
+            // 1. Urutkan berdasarkan tanggal terbaru
+            expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // 2. Kelompokkan berdasarkan Bulan-Tahun
+            const groupedExpenses = expenses.reduce((acc, expense) => {
+                const dateObj = new Date(expense.date);
+                const year = dateObj.getFullYear();
+                
+                // Format: Tahun-Bulan (misalnya 2025-09)
+                const monthYear = dateObj.toLocaleDateString('id-ID', { year: 'numeric', month: 'long' });
+                
+                if (!acc[monthYear]) {
+                    acc[monthYear] = {
+                        title: monthYear,
+                        items: [],
+                        total: 0
+                    };
+                }
+
+                acc[monthYear].items.push(expense);
+                acc[monthYear].total += parseFloat(expense.amount);
+
+                return acc;
+            }, {});
+
+            // 3. Render ke HTML
+            for (const key in groupedExpenses) {
+                const group = groupedExpenses[key];
+                
+                const formatRupiah = (number) => {
+                    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
+                };
+
+                const groupHTML = `
+                    <div class="month-group">
+                        <div class="month-header">
+                            <span>${group.title}</span>
+                            <span class="total-amount">Total: ${formatRupiah(group.total)}</span>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 15%;">Tanggal</th>
+                                    <th style="width: 60%;">Deskripsi</th>
+                                    <th class="text-right" style="width: 25%;">Jumlah</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${group.items.map(item => `
+                                    <tr>
+                                        <td>${new Date(item.date).toLocaleDateString('id-ID')}</td>
+                                        <td>${item.description}</td>
+                                        <td class="text-right">${formatRupiah(item.amount)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                listDiv.innerHTML += groupHTML;
+            }
+        }
+
+        /** Handler saat formulir disubmit */
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const date = document.getElementById('input-date').value;
+            const description = document.getElementById('input-description').value;
+            const amount = parseFloat(document.getElementById('input-amount').value);
+
+            if (!date || !description || isNaN(amount) || amount <= 0) {
+                alert("Harap isi semua kolom dengan benar!");
+                return;
+            }
+
+            const newExpense = {
+                date: date,
+                description: description,
+                amount: amount
+            };
+
+            const expenses = loadExpenses();
+            expenses.push(newExpense);
+            saveExpenses(expenses);
+
+            // Bersihkan form dan render ulang
+            form.reset();
+            renderExpenses();
+        });
+
+        // Panggil saat halaman dimuat
+        renderExpenses();
+
+    </script>
+</body>
+</html>
